@@ -365,7 +365,7 @@ let rec list_of_mp acc = function
 let list_of_mp mp = list_of_mp [] mp
 
 let string_of_kn (kn: KerName.t) =
-  let (mp,dp,l) = KerName.repr kn in
+  let (mp,l) = KerName.repr kn in
   let mp = list_of_mp mp in
   String.concat "_" mp ^ "_" ^ string_of_label l
 
@@ -483,6 +483,7 @@ let bindings_for_inductive (env : Environ.env) (mutind_body : mutual_inductive_b
        let univ_context = mutind_body.mind_universes in
        let ctx = match univ_context with
          (* TODO: definitely need to handle Monomorphic_ind ctx, where ctx is Univ.ContextSet.t *)
+         (* TODO: possibly also handle Cumulative_ind *)
            Polymorphic_ind ctx -> ctx in
       let univ_instance = AUContext.instance ctx in
       let name_id = ind_body.mind_typename in
@@ -638,16 +639,11 @@ and build_const (env : Environ.env) (depth : int) ((c, u) : pconstant) =
   let cd = Environ.lookup_constant c env in
   let global_env = Global.env () in
   match get_definition cd with
-    None ->
-      begin
-        match cd.const_type with
-          RegularArity ty -> build_axiom kn (build_ast global_env (depth - 1) ty) u
-        | TemplateArity _ -> assert false (* pre-8.5 universe polymorphism *)
-      end
+    None -> build_axiom kn (build_ast global_env (depth - 1) cd.const_type) u
   | Some c ->
       build_definition kn (build_ast global_env (depth - 1) c) u
 
-and build_fixpoint_functions (env : Environ.env) (depth : int) (names : name array) (typs : constr array) (defs : constr array)  =
+and build_fixpoint_functions (env : Environ.env) (depth : int) (names : Name.t array) (typs : constr array) (defs : constr array)  =
   let env_fix = Environ.push_rel_context (bindings_for_fix names typs) env in
   List.map
     (fun i ->
